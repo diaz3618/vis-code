@@ -1,6 +1,6 @@
 # Rust Code Visualizer
 
-A powerful visualization tool for exploring and understanding Rust codebases through interactive diagrams and visual representations.
+A simple visualization tool for exploring Rust (just Rust for now) codebases through interactive diagrams and visual representations.
 
 ## Features
 
@@ -41,27 +41,6 @@ This project is built with:
 - [D3.js](https://d3js.org) - For data visualization components
 - [React Force Graph](https://github.com/vasturiano/react-force-graph) - For 3D force-directed graph visualization
 - Custom Rust parsing to extract code structure and relationships
-
-## Learn More
-
-For more information about the technologies used:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial
-- [D3.js Documentation](https://d3js.org) - comprehensive guide to D3.js
-- [Rust Programming Language](https://www.rust-lang.org/) - learn about Rust
-
-## System Block Diagram Visualization
-
-The System Block Diagram visualization offers a high-level architectural view of your Rust project, showing:
-
-- Clear visual representation of functional modules in the system
-- Communications pathways between modules with directional flow indicators
-- Visual grouping of related functionality
-- Detailed view of functions, structs, and other elements within each module
-- Interactive elements for exploring connections and dependencies
-
-This visualization helps developers understand how the parts fit into the larger whole, identify excessive coupling, and maintain proper system architecture.
 
 ## Project Structure
 
