@@ -8,7 +8,8 @@ import ForceGraph3D from '@/components/ForceGraph3D';
 import HierarchicalView from '@/components/HierarchicalView';
 import NodeInfoPanel from '@/components/NodeInfoPanel';
 import VisibilityControls from '@/components/VisibilityControls';
-import { GraphData, HierarchicalData, ViewMode, TreeNode } from '@/types/rust-types';
+import LanguageSelector from '@/components/LanguageSelector';
+import { GraphData, HierarchicalData, ViewMode, TreeNode, CodeLanguage } from '@/types/common-types';
 
 export default function Home() {
   // Main state
@@ -19,6 +20,8 @@ export default function Home() {
   const [hierarchicalData, setHierarchicalData] = useState<HierarchicalData | null>(null);
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentLanguage, setCurrentLanguage] = useState<CodeLanguage>('rust');
+  const [availableLanguages, setAvailableLanguages] = useState<CodeLanguage[]>(['rust']);
   
   // Visibility state for filtering graph components
   const [visibleNodeTypes, setVisibleNodeTypes] = useState<Set<string>>(new Set([
@@ -42,11 +45,47 @@ export default function Home() {
       setError(null);
       
       // Fetch project metadata
-      const metadataResponse = await axios.get(`/api/projects?projectId=${projectId}`);
+      const metadataResponse = await axios.get(`/api/projects/metadata?projectId=${projectId}`);
       const metadata = metadataResponse.data;
       
       if (metadata.name) {
         setProjectName(metadata.name);
+      }
+      
+      // Set available languages based on metadata
+      const languages: CodeLanguage[] = [];
+      if (metadata.language) {
+        languages.push(metadata.language as CodeLanguage);
+        setCurrentLanguage(metadata.language as CodeLanguage);
+      } else {
+        // Default to Rust if no language specified
+        languages.push('rust');
+        setCurrentLanguage('rust');
+      }
+      
+      // Always include Rust for backward compatibility
+      if (!languages.includes('rust')) {
+        languages.push('rust');
+      }
+      
+      setAvailableLanguages(languages);
+      
+      // Update visible node types based on language
+      if (metadata.language === 'python') {
+        setVisibleNodeTypes(new Set([
+          'function', 'class', 'method', 'module', 'import', 'variable', 'constant', 'decorator'
+        ]));
+        setVisibleEdgeTypes(new Set([
+          'calls', 'imports', 'inherits', 'contains', 'uses'
+        ]));
+      } else {
+        // Default Rust node types
+        setVisibleNodeTypes(new Set([
+          'function', 'struct', 'enum', 'trait', 'impl', 'module', 'constant', 'macro', 'use'
+        ]));
+        setVisibleEdgeTypes(new Set([
+          'calls', 'implements', 'uses', 'contains', 'extends'
+        ]));
       }
       
       // Fetch the graph data for the selected view
@@ -136,6 +175,123 @@ export default function Home() {
       setVisibleNodeTypes(new Set());
       setVisibleEdgeTypes(new Set());
     }
+  };
+  
+  // Handle language change
+  const handleLanguageChange = async (language: string) => {
+    if (selectedProject && (language === 'rust' || language === 'python')) {
+      setCurrentLanguage(language as CodeLanguage);
+      setIsLoading(true);
+      
+      try {
+        // Fetch data for the selected language
+        const response = await axios.get(`/api/projects?projectId=${selectedProject}&language=${language}`);
+        const data = response.data;
+        
+        setGraphData(data);
+        
+        // Convert to hierarchical data for tree view
+        const convertedData = convertToHierarchicalData(data);
+        setHierarchicalData(convertedData);
+        
+        // Update visible node types based on language
+        if (language === 'python') {
+          setVisibleNodeTypes(new Set([
+            'function', 'class', 'method', 'module', 'import', 'variable', 'constant', 'decorator'
+          ]));
+          setVisibleEdgeTypes(new Set([
+            'calls', 'imports', 'inherits', 'contains', 'uses'
+          ]));
+        } else {
+          // Default Rust node types
+          setVisibleNodeTypes(new Set([
+            'function', 'struct', 'enum', 'trait', 'impl', 'module', 'constant', 'macro', 'use'
+          ]));
+          setVisibleEdgeTypes(new Set([
+            'calls', 'implements', 'uses', 'contains', 'extends'
+          ]));
+        }
+      } catch (error) {
+        console.error(`Error fetching ${language} data:`, error);
+        setError(`Failed to load ${language} visualization data.`);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+  
+  // Helper function to convert graph data to hierarchical format
+  const convertToHierarchicalData = (data: GraphData): HierarchicalData => {
+    const moduleMap = new Map<string, TreeNode>();
+    
+    // Create a map of all modules/paths
+    for (const node of data.nodes) {
+      const path = node.path || '';
+      const parts = path.split('.');
+      
+      let currentPath = '';
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!part) continue;
+        
+        currentPath = currentPath ? `${currentPath}.${part}` : part;
+        
+        if (!moduleMap.has(currentPath)) {
+          moduleMap.set(currentPath, {
+            id: `module:${currentPath}`,
+            name: part,
+            type: 'module',
+            path: currentPath,
+            children: []
+          });
+        }
+      }
+    }
+    
+    // Build module hierarchy
+    const rootModules: TreeNode[] = [];
+    
+    moduleMap.forEach((module, modulePath) => {
+      const lastDotIndex = modulePath.lastIndexOf('.');
+      
+      if (lastDotIndex === -1) {
+        // This is a root module
+        rootModules.push(module);
+      } else {
+        // This is a child module
+        const parentPath = modulePath.substring(0, lastDotIndex);
+        const parentModule = moduleMap.get(parentPath);
+        
+        if (parentModule) {
+          parentModule.children.push(module);
+        }
+      }
+    });
+    
+    // Add nodes to their respective modules
+    for (const node of data.nodes) {
+      if (node.type === 'module') continue;
+      
+      const path = node.path || '';
+      const moduleNode = moduleMap.get(path);
+      
+      if (moduleNode) {
+        moduleNode.children.push({
+          id: node.id,
+          name: node.name,
+          type: node.type,
+          path: node.path,
+          file: node.file,
+          signature: node.signature,
+          children: []
+        });
+      }
+    }
+    
+    return {
+      name: projectName || 'Project',
+      children: rootModules
+    };
   };
   
   // Type guard to check if a node is a TreeNode
@@ -264,6 +420,17 @@ export default function Home() {
                 </button>
               </nav>
               
+              {/* Language Selector */}
+              {selectedProject && availableLanguages.length > 1 && (
+                <div className="border-t border-gray-300 my-4 pt-4">
+                  <LanguageSelector
+                    currentLanguage={currentLanguage}
+                    availableLanguages={availableLanguages}
+                    onLanguageChange={handleLanguageChange}
+                  />
+                </div>
+              )}
+              
               <div className="border-t border-gray-300 my-4 pt-4">
                 <VisibilityControls 
                   visibleNodeTypes={visibleNodeTypes}
@@ -271,6 +438,7 @@ export default function Home() {
                   onNodeTypeToggle={handleNodeTypeToggle}
                   onEdgeTypeToggle={handleEdgeTypeToggle}
                   onToggleAll={handleToggleAll}
+                  language={currentLanguage}
                 />
               </div>
             </div>

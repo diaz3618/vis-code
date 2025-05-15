@@ -84,7 +84,8 @@ export default function ProjectUploader({ onUploadComplete }: { onUploadComplete
   
   return (
     <div className="w-full max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-6 text-center">Upload or Clone a Rust Project</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center">Upload or Clone a Project</h2>
+      <p className="text-center text-gray-600 mb-4">Supports Rust and Python projects</p>
       
       {/* Upload Method Selection */}
       <div className="flex mb-6 border rounded overflow-hidden">

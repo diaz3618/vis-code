@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { GraphData } from '@/types/rust-types';
+import { GraphData } from '@/types/common-types';
 
 // Dynamically import the ForceGraph3D component with no SSR
 const ForceGraph = dynamic(() => import('react-force-graph-3d'), {

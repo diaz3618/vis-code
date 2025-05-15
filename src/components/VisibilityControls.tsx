@@ -1,29 +1,11 @@
 // src/components/VisibilityControls.tsx
 'use client';
 
-import React from 'react';
-
-// Node types that can be toggled in the visualization
-export const NODE_TYPES = [
-  { id: 'function', label: 'Functions', color: '#4285F4' },
-  { id: 'struct', label: 'Structs', color: '#EA4335' },
-  { id: 'enum', label: 'Enums', color: '#FBBC05' },
-  { id: 'trait', label: 'Traits', color: '#34A853' },
-  { id: 'impl', label: 'Implementations', color: '#9C27B0' },
-  { id: 'module', label: 'Modules', color: '#FF9800' },
-  { id: 'constant', label: 'Constants', color: '#795548' },
-  { id: 'macro', label: 'Macros', color: '#607D8B' },
-  { id: 'use', label: 'Use Statements', color: '#9E9E9E' }
-];
-
-// Edge types that can be toggled in the visualization
-export const EDGE_TYPES = [
-  { id: 'calls', label: 'Function Calls', color: '#4285F4' },
-  { id: 'implements', label: 'Implements', color: '#34A853' },
-  { id: 'uses', label: 'Uses', color: '#FBBC05' },
-  { id: 'contains', label: 'Contains', color: '#EA4335' },
-  { id: 'extends', label: 'Extends', color: '#9C27B0' }
-];
+import React, { useMemo } from 'react';
+import { 
+  getNodeTypesByLanguage, 
+  getEdgeTypesByLanguage 
+} from './NodeTypeConfig';
 
 interface VisibilityControlsProps {
   visibleNodeTypes: Set<string>;
@@ -31,6 +13,7 @@ interface VisibilityControlsProps {
   onNodeTypeToggle: (type: string) => void;
   onEdgeTypeToggle: (type: string) => void;
   onToggleAll: (showAll: boolean) => void;
+  language?: string;
 }
 
 const VisibilityControls: React.FC<VisibilityControlsProps> = ({
@@ -38,8 +21,12 @@ const VisibilityControls: React.FC<VisibilityControlsProps> = ({
   visibleEdgeTypes,
   onNodeTypeToggle,
   onEdgeTypeToggle,
-  onToggleAll
+  onToggleAll,
+  language = 'rust' // Default to Rust if not specified
 }) => {
+  // Get node and edge types based on the language
+  const nodeTypes = useMemo(() => getNodeTypesByLanguage(language), [language]);
+  const edgeTypes = useMemo(() => getEdgeTypesByLanguage(language), [language]);
   return (
     <div className="space-y-6">
       <div className="flex justify-between mb-2">
@@ -63,7 +50,7 @@ const VisibilityControls: React.FC<VisibilityControlsProps> = ({
       <div>
         <h3 className="font-semibold mb-2 text-sm text-gray-700">Node Types</h3>
         <div className="space-y-1 max-h-40 overflow-y-auto pr-2">
-          {NODE_TYPES.map(type => (
+          {nodeTypes.map((type) => (
             <div key={type.id} className="flex items-center">
               <label className="flex items-center cursor-pointer w-full">
                 <input
@@ -88,7 +75,7 @@ const VisibilityControls: React.FC<VisibilityControlsProps> = ({
       <div>
         <h3 className="font-semibold mb-2 text-sm text-gray-700">Connection Types</h3>
         <div className="space-y-1 max-h-40 overflow-y-auto pr-2">
-          {EDGE_TYPES.map(type => (
+          {edgeTypes.map(type => (
             <div key={type.id} className="flex items-center">
               <label className="flex items-center cursor-pointer w-full">
                 <input

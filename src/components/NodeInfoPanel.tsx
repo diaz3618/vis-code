@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { TreeNode } from '@/types/rust-types';
+import { TreeNode } from '@/types/common-types';
 
 interface GraphNode {
   id: string;
@@ -11,6 +11,9 @@ interface GraphNode {
   file?: string;
   signature?: string;
   visibility?: string;
+  language?: string;
+  docstring?: string;
+  decorators?: string[];
   children?: never;
   [key: string]: unknown;
 }
@@ -153,6 +156,73 @@ const NodeInfoPanel: React.FC<NodeInfoPanelProps> = ({ node, onClose }) => {
                 {node.file ? node.file.split('/').pop() : 'Unknown'}
               </p>
               <p className="text-xs text-gray-500 truncate">{node.file}</p>
+            </div>
+          </>
+        );
+        
+      case 'class':
+        return (
+          <>
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-700">Signature</h3>
+              <pre className="mt-1 text-sm bg-gray-100 p-2 rounded overflow-x-auto">
+                {node.signature || 'No signature available'}
+              </pre>
+            </div>
+            
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-700">Path</h3>
+              <p className="mt-1 text-sm">{node.path || 'Root'}</p>
+            </div>
+            
+            {node.docstring && (
+              <div className="mb-4">
+                <h3 className="font-semibold text-gray-700">Docstring</h3>
+                <pre className="mt-1 text-sm bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                  {node.docstring}
+                </pre>
+              </div>
+            )}
+          </>
+        );
+        
+      case 'method':
+        return (
+          <>
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-700">Signature</h3>
+              <pre className="mt-1 text-sm bg-gray-100 p-2 rounded overflow-x-auto">
+                {node.signature || 'No signature available'}
+              </pre>
+            </div>
+            
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-700">Class</h3>
+              <p className="mt-1 text-sm">{(node.path || '').split('.').pop() || 'Unknown'}</p>
+            </div>
+            
+            {node.docstring && (
+              <div className="mb-4">
+                <h3 className="font-semibold text-gray-700">Docstring</h3>
+                <pre className="mt-1 text-sm bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                  {node.docstring}
+                </pre>
+              </div>
+            )}
+          </>
+        );
+      
+      case 'import':
+        return (
+          <>
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-700">Module</h3>
+              <p className="mt-1 text-sm">{node.path || 'Unknown'}</p>
+            </div>
+            
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-700">File</h3>
+              <p className="mt-1 text-sm">{node.file?.split('/').pop() || 'Unknown'}</p>
             </div>
           </>
         );

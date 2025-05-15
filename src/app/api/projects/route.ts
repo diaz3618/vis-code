@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import simpleGit from 'simple-git';
 import extract from 'extract-zip';
 import { parseRustProject, convertToGraphData } from '@/lib/parsers/rust-parser-simple';
+import { parsePythonProject, convertToGraphData as convertPythonToGraphData } from '@/lib/parsers/python-parser';
 
 // Base directory for project storage
 const PROJECTS_DIR = path.join(process.cwd(), 'projects');
@@ -76,7 +77,14 @@ export async function POST(request: NextRequest) {
     }
     
     // Save project metadata
-    const metadata = {
+    const metadata: {
+      id: string;
+      name: string;
+      path: string;
+      type: string;
+      timestamp: number;
+      language?: string;
+    } = {
       id: projectId,
       name: projectName,
       path: projectPath,
@@ -89,21 +97,76 @@ export async function POST(request: NextRequest) {
       JSON.stringify(metadata, null, 2)
     );
     
-    // Begin parsing the project (this could be moved to a background job)
-    const rustProject = await parseRustProject(projectPath);
+    // Detect project language by checking for key files
+    const hasPythonFiles = fs.existsSync(path.join(projectPath, 'requirements.txt')) || 
+                           fs.existsSync(path.join(projectPath, 'setup.py')) ||
+                           fs.readdirSync(projectPath).some(file => file.endsWith('.py'));
+                           
+    const hasRustFiles = fs.existsSync(path.join(projectPath, 'Cargo.toml')) ||
+                         fs.readdirSync(projectPath).some(file => file.endsWith('.rs'));
     
-    // Save the parsed project data
-    fs.writeFileSync(
-      path.join(projectDir, 'project-data.json'),
-      JSON.stringify(rustProject, null, 2)
-    );
-    
-    // Convert to graph data and save
-    const graphData = convertToGraphData(rustProject);
-    fs.writeFileSync(
-      path.join(projectDir, 'graph-data.json'),
-      JSON.stringify(graphData, null, 2)
-    );
+    // Process based on detected language
+    if (hasPythonFiles) {
+      // Parse Python project
+      const pythonProject = await parsePythonProject(projectPath);
+      
+      // Save the parsed project data
+      fs.writeFileSync(
+        path.join(projectDir, 'project-data.json'),
+        JSON.stringify(pythonProject, null, 2)
+      );
+      
+      // Convert to graph data and save
+      const graphData = convertPythonToGraphData(pythonProject);
+      fs.writeFileSync(
+        path.join(projectDir, 'graph-data.json'),
+        JSON.stringify(graphData, null, 2)
+      );
+      
+      // Update metadata to include language
+      metadata.language = 'python';
+      fs.writeFileSync(
+        path.join(projectDir, 'metadata.json'),
+        JSON.stringify(metadata, null, 2)
+      );
+    } else if (hasRustFiles) {
+      // Parse Rust project
+      const rustProject = await parseRustProject(projectPath);
+      
+      // Save the parsed project data
+      fs.writeFileSync(
+        path.join(projectDir, 'project-data.json'),
+        JSON.stringify(rustProject, null, 2)
+      );
+      
+      // Convert to graph data and save
+      const graphData = convertToGraphData(rustProject);
+      fs.writeFileSync(
+        path.join(projectDir, 'graph-data.json'),
+        JSON.stringify(graphData, null, 2)
+      );
+      
+      // Update metadata to include language
+      metadata.language = 'rust';
+      fs.writeFileSync(
+        path.join(projectDir, 'metadata.json'),
+        JSON.stringify(metadata, null, 2)
+      );
+    } else {
+      // Default to Rust processing if language can't be determined
+      const rustProject = await parseRustProject(projectPath);
+      
+      fs.writeFileSync(
+        path.join(projectDir, 'project-data.json'),
+        JSON.stringify(rustProject, null, 2)
+      );
+      
+      const graphData = convertToGraphData(rustProject);
+      fs.writeFileSync(
+        path.join(projectDir, 'graph-data.json'),
+        JSON.stringify(graphData, null, 2)
+      );
+    }
     
     return NextResponse.json({
       success: true,
@@ -124,6 +187,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
+    const language = searchParams.get('language');
     
     if (projectId) {
       // Return data for a specific project
@@ -133,8 +197,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Project not found' }, { status: 404 });
       }
       
-      // Check if graph data exists
-      const graphDataPath = path.join(projectDir, 'graph-data.json');
+      // Check if graph data exists with language-specific filename
+      let graphDataPath = path.join(projectDir, 'graph-data.json');
+      
+      // If language is specified, try to use language-specific data
+      if (language) {
+        const langSpecificPath = path.join(projectDir, `graph-data-${language}.json`);
+        if (fs.existsSync(langSpecificPath)) {
+          graphDataPath = langSpecificPath;
+        }
+      }
       
       if (fs.existsSync(graphDataPath)) {
         const graphData = JSON.parse(fs.readFileSync(graphDataPath, 'utf8'));
@@ -144,10 +216,36 @@ export async function GET(request: NextRequest) {
         const projectDataPath = path.join(projectDir, 'project-data.json');
         
         if (fs.existsSync(projectDataPath)) {
-          const rustProject = JSON.parse(fs.readFileSync(projectDataPath, 'utf8'));
-          const graphData = convertToGraphData(rustProject);
+          const projectData = JSON.parse(fs.readFileSync(projectDataPath, 'utf8'));
           
-          // Save the graph data for future requests
+          // Check metadata for language
+          const metadataPath = path.join(projectDir, 'metadata.json');
+          let graphData;
+          
+          if (fs.existsSync(metadataPath)) {
+            const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+            const dataLanguage = language || metadata.language || 'rust';
+            
+            if (dataLanguage === 'python') {
+              graphData = convertPythonToGraphData(projectData);
+              
+              // Save language-specific graph data for future requests
+              const pythonGraphPath = path.join(projectDir, 'graph-data-python.json');
+              fs.writeFileSync(pythonGraphPath, JSON.stringify(graphData, null, 2));
+            } else {
+              // Default to Rust
+              graphData = convertToGraphData(projectData);
+              
+              // Save language-specific graph data for future requests
+              const rustGraphPath = path.join(projectDir, 'graph-data-rust.json');
+              fs.writeFileSync(rustGraphPath, JSON.stringify(graphData, null, 2));
+            }
+          } else {
+            // Fallback to Rust if no metadata
+            graphData = convertToGraphData(projectData);
+          }
+          
+          // Save the graph data for future requests (language-agnostic version)
           fs.writeFileSync(graphDataPath, JSON.stringify(graphData, null, 2));
           
           return NextResponse.json(graphData);

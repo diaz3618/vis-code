@@ -1,6 +1,6 @@
-# Rust Code Visualizer
+# Code Visualizer
 
-A simple visualization tool for exploring Rust (just Rust for now) codebases through interactive diagrams and visual representations.
+A simple visualization tool for exploring Rust and Python codebases through interactive diagrams and visual representations.
 
 ## Features
 
@@ -27,7 +27,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Usage
 
-1. Upload a Rust project or select a previously uploaded project
+1. Upload a Rust or Python project or select a previously uploaded project
 2. Choose from different visualization types in the sidebar
 3. Use the visibility controls to filter what node and edge types are displayed
 4. Click on nodes to view detailed information in the info panel
@@ -40,7 +40,10 @@ This project is built with:
 - [Next.js](https://nextjs.org) - React framework for the frontend
 - [D3.js](https://d3js.org) - For data visualization components
 - [React Force Graph](https://github.com/vasturiano/react-force-graph) - For 3D force-directed graph visualization
-- Custom Rust parsing to extract code structure and relationships
+- Custom Rust parser with two implementations:
+  - RegEx-based parser for browser compatibility
+  - Tree-sitter parser for enhanced accuracy (server-side only)
+- Python code parser for Python project visualization
 
 ## Project Structure
 
@@ -54,8 +57,13 @@ src/
     SystemBlockDiagram.tsx    # System block diagram visualization
     ...
   lib/              # Helper utilities
-    parsers/        # Rust code parsing functionality
+    parsers/        # Code parsing functionality
+      rust-parser.ts          # Tree-sitter based Rust parser (server-side)
+      rust-parser-simple.ts   # RegEx based Rust parser (browser compatible)
+      python-parser.ts        # Python code parser
   types/            # TypeScript type definitions
+    rust-types.ts            # Types for Rust code structures
+    python-types.ts          # Types for Python code structures
 ```
 
 ## Contributing

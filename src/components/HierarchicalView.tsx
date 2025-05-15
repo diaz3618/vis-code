@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import * as d3 from 'd3';
-import { HierarchicalData, TreeNode } from '@/types/rust-types';
+import { HierarchicalData, TreeNode } from '@/types/common-types';
 
 interface HierarchicalViewProps {
   data: HierarchicalData;
